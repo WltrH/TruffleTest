@@ -7,8 +7,13 @@ ___
 
 ## Nombre de test effectué : 17
 
-Pas de tableau avec le pourcentage de tests réussi car pas de coverage car sur Truffle.
+## Pourcentage de coverage atteint : 94.87%
 
+| File | % Stmts | % Branch | % Funcs | % Line | Uncovered Lines |
+| ----------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| Contracts/ | 94.87| 82.14 | 90.91| 95.12| 55,130
+Voting.sol | 94.87 | 82.14 | 90.91| 95.12| 
+| All files | 94.87 | 82.14 | 90.91| 95.12| 
 ___
 
 ### 1) Test de la fonction addVoter
