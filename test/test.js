@@ -19,6 +19,11 @@ contract('voting', accounts =>{
             await votingInstance.addVoter(voter, {from:owner});
         });
 
+        it('should owner could not add voter', async () => {
+          await votingInstance.startProposalsRegistering({from:owner});
+          await expectRevert(votingInstance.addVoter(voter, {from:owner}),"Voters registration is not open yet");
+      });
+
         it('should voter is whiteListed', async () => {
             const storedata = await votingInstance.getVoter(voter, {from:voter});
             console.log(storedata.isRegistered);
@@ -31,10 +36,6 @@ contract('voting', accounts =>{
             expect(storedata.isRegistered).to.equal(false);
         });
 
-        it('should owner could not add voter', async () => {
-            await votingInstance.startProposalsRegistering({from:owner});
-            await expectRevert(votingInstance.addVoter(voter, {from:owner}),"Voters registration is not open yet");
-        });
 
     });
 
@@ -42,62 +43,53 @@ contract('voting', accounts =>{
 
     describe("Test fonction addProposal", function(){
 
-        beforeEach(async function (){
-          votingInstance = await voting.new({from:owner});
-          await votingInstance.addVoter(voter, {from:owner});
-          await votingInstance.addVoter(voter2, {from:owner});
-          await votingInstance.startProposalsRegistering({from:owner});
-            
-      });
-  
-        it('should voter return proposal', async () => { 
-          const storedata = await votingInstance.addProposal("On en a gros", {from:voter});
-          const storedata2 = await votingInstance.addProposal("Cramez tout je vous dis", {from:voter2});
-          expectEvent(storedata, 'ProposalRegistered',{proposalId : new BN(0)});
-          expectEvent(storedata2, 'ProposalRegistered',{proposalId : new BN(1)});
-        });
-
-    });
-
-    describe("Test des require dans addProposal", function(){
-
       beforeEach(async function (){
-            votingInstance = await voting.new({from:owner});
-            await votingInstance.addVoter(voter, {from:owner});
-            await votingInstance.startProposalsRegistering({from:owner});     
-      });
-
-      it('should voter could not add empty proposal', async () => {   
-          await expectRevert(votingInstance.addProposal("", {from:voter}),"Vous ne pouvez pas ne rien proposer");
+        votingInstance = await voting.new({from:owner});
+        await votingInstance.addVoter(voter, {from:owner});
+        await votingInstance.addVoter(voter2, {from:owner});
+        await votingInstance.startProposalsRegistering({from:owner});
+            
       });
 
       it('should proposals are not allowed yet', async () => {
-          await votingInstance.endProposalsRegistering({from:owner});
-          await expectRevert(votingInstance.addProposal("Pays de Gales Independant",{from:voter}), "Proposals are not allowed yet");
+        await votingInstance.endProposalsRegistering({from:owner});
+        await expectRevert(votingInstance.addProposal("Pays de Gales Independant",{from:voter}), "Proposals are not allowed yet");
       });
- 
+
+      it('should voter could not add empty proposal', async () => {   
+        await expectRevert(votingInstance.addProposal("", {from:voter}),"Vous ne pouvez pas ne rien proposer");
+      });
+  
+      it('should voter return proposal', async () => { 
+        const storedata = await votingInstance.addProposal("On en a gros", {from:voter});
+        const storedata2 = await votingInstance.addProposal("Cramez tout je vous dis", {from:voter2});
+        expectEvent(storedata, 'ProposalRegistered',{proposalId : new BN(0)});
+        expectEvent(storedata2, 'ProposalRegistered',{proposalId : new BN(1)});
+      });
+
     });
+
 
     /*=========================================== TESTS SUR LES FONCTIONS DE CHANGEMENT DE WORKFLOW =================================================== */
 
-    describe("Test du require des Workflow", function(){
+    describe("Test du Modifier & require des Workflow", function(){
 
       beforeEach(async function (){
-          votingInstance = await voting.new({from:owner});
-          await votingInstance.addVoter(voter, {from:owner});
-          await votingInstance.startProposalsRegistering({from:owner});
+        votingInstance = await voting.new({from:owner});
+        await votingInstance.addVoter(voter, {from:owner});
+        await votingInstance.startProposalsRegistering({from:owner});
       });
 
       it('should owner cant addProposal', async () => {
-          await expectRevert(votingInstance.addProposal("Pays de Gales Independant", {from:owner}), "You're not a voter");
+        await expectRevert(votingInstance.addProposal("Pays de Gales Independant", {from:owner}), "You're not a voter");
       });
 
       it('should owner cant change for starting vote', async () => {
-          await expectRevert(votingInstance.startVotingSession({from:owner}), "Registering proposals phase is not finished");
+        await expectRevert(votingInstance.startVotingSession({from:owner}), "Registering proposals phase is not finished");
       });
 
       it('should owner cant change for ending vote', async () => {
-          await expectRevert(votingInstance.endVotingSession({from:owner}), "Voting session havent started yet");
+        await expectRevert(votingInstance.endVotingSession({from:owner}), "Voting session havent started yet");
       });
 
       it('should owner cant change for start tally vote', async () => {
@@ -122,11 +114,6 @@ contract('voting', accounts =>{
 
       });
 
-      it('should voter set vote', async ()  =>{
-        const storedata = await votingInstance.setVote(new BN (0),{from:voter});
-        expectEvent(storedata, 'Voted', {proposalId: new BN (0)});
-      });
-
       it('should voter have already voted', async () => {
         await votingInstance.setVote(new BN(0),{from:voter});
         await expectRevert(votingInstance.setVote(new BN(0),{from:voter}), "You have already voted");
@@ -139,40 +126,45 @@ contract('voting', accounts =>{
         expect(storedata.hasVoted).to.equal(true);
       });
 
+      it('should voter set vote', async ()  =>{
+        const storedata = await votingInstance.setVote(new BN (0),{from:voter});
+        expectEvent(storedata, 'Voted', {proposalId: new BN (0)});
+      });
+
     });
 
     /*=========================================== TESTS SUR LA FONCTION DU GAGNANT =================================================== */
 
     describe("Test de TallyVote", function(){
 
-        beforeEach(async function() {
-          votingInstance = await voting.new({from:owner});
-          await votingInstance.addVoter(voter, {from:owner});
-          await votingInstance.addVoter(voter2, {from:owner});
-          await votingInstance.startProposalsRegistering({from:owner});
-          await votingInstance.addProposal("cest pas faux", {from:voter});
-          await votingInstance.endProposalsRegistering({from:owner});
-          await votingInstance.startVotingSession({from:owner});          
-        });
-
-        it ('should vote have not ended', async () => {
-          await expectRevert(votingInstance.tallyVotes ({from:owner}),"Current status is not voting session ended");
-        });
-
-        it ('should vote have a winning Proposal', async () => {
-            await votingInstance.setVote(new BN (0),{from:voter});
-            await votingInstance.setVote(new BN (0),{from:voter2});
-            await votingInstance.endVotingSession({from:owner});
-            const storedata = await votingInstance.tallyVotes ({from:owner});
-            expect(new BN(storedata.winningProposalID)).to.be.bignumber.equal(new BN(0));
-        });
-
-        it ('should return workflowstatus', async () => {
-          await votingInstance.endVotingSession({from:owner});
-          const storedata = await votingInstance.tallyVotes({from:owner});
-          expectEvent(storedata, 'WorkflowStatusChange',{previousStatus : new BN(4), newStatus : new BN(5)});
-        });
+      beforeEach(async function() {
+        votingInstance = await voting.new({from:owner});
+        await votingInstance.addVoter(voter, {from:owner});
+        await votingInstance.addVoter(voter2, {from:owner});
+        await votingInstance.startProposalsRegistering({from:owner});
+        await votingInstance.addProposal("cest pas faux", {from:voter});
+        await votingInstance.endProposalsRegistering({from:owner});
+        await votingInstance.startVotingSession({from:owner});          
       });
+
+      it ('should vote have not ended', async () => {
+        await expectRevert(votingInstance.tallyVotes ({from:owner}),"Current status is not voting session ended");
+      });
+
+      it ('should vote have a winning Proposal', async () => {
+        await votingInstance.setVote(new BN (0),{from:voter});
+        await votingInstance.setVote(new BN (0),{from:voter2});
+        await votingInstance.endVotingSession({from:owner});
+        const storedata = await votingInstance.tallyVotes ({from:owner});
+        expect(new BN(storedata.winningProposalID)).to.be.bignumber.equal(new BN(0));
+      });
+
+      it ('should return workflowstatus', async () => {
+        await votingInstance.endVotingSession({from:owner});
+        const storedata = await votingInstance.tallyVotes({from:owner});
+        expectEvent(storedata, 'WorkflowStatusChange',{previousStatus : new BN(4), newStatus : new BN(5)});
+      });
+    });
 
 });
 
